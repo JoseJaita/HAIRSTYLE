@@ -1,0 +1,146 @@
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
+#include <iostream>
+#include <vector>
+
+using namespace std;
+using namespace cv;
+
+
+Mat skeletization(Mat& src){
+   Mat img = src.clone();
+   threshold(img, img, 0, 255, THRESH_BINARY_INV|THRESH_OTSU);
+
+   //threshold(img, img, 20, 255, THRESH_BINARY_INV);
+   Mat element2 = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(7, 7));
+   dilate(img,img,element2);
+   dilate(img,img,element2);
+   erode(img,img,element2);
+   erode(img,img,element2);
+
+  
+   Mat skel(img.size(), CV_8UC1, cv::Scalar(0));
+   Mat temp(img.size(), CV_8UC1);
+
+   Mat element = cv::getStructuringElement(cv::MORPH_CROSS, cv::Size(3, 3));
+
+   bool done;
+   do{
+      cv::morphologyEx(img, temp, cv::MORPH_OPEN, element);
+      cv::bitwise_not(temp, temp);
+      cv::bitwise_and(img, temp, temp);
+      cv::bitwise_or(skel, temp, skel);
+      cv::erode(img, img, element);
+      
+      double max;
+      cv::minMaxLoc(img, 0, &max);
+      done = (max == 0);
+   } while (!done);
+   return skel;
+}
+
+
+void extractPoints(Mat& img, vector<Point>& points){
+   points.clear();
+   for(int r = 0; r < img.rows; r++){
+      for(int c = 0; c<img.cols;c++){
+	 // find curve
+	 if (img.at<unsigned char>(r,c) == 255){
+	    points.push_back(Point(c, r));
+	    break;
+	 }
+      }
+   }
+}
+
+void findMaxCurvature(const vector<Point>& points, vector<Point>& max_points){
+  max_points.clear();
+  int dir = 0, acc = 0;
+  Point last = points[0];
+  Point min_p, max_p;
+
+  int i = 0;
+  for (auto p : points) {
+    if (i<100){
+      cout << dir<<" " <<acc <<" " <<p<<" "<<last<< "\n";
+    }
+    // curve O+
+    if (p.x > last.x){
+      cout <<"+" <<endl;
+      if (dir == 1) {
+	acc = 0;
+	max_p = p;
+      }
+      if (dir == -1){
+	acc++;
+	if (acc>10){
+	  acc = 0; dir = +1; max_points.push_back(min_p);
+	}
+      }
+      if (dir == 0){
+	acc++; if (acc>10) {dir = +1; acc = 0;}
+      }
+    }
+    // curve O-
+    if (p.x < last.x){
+      cout << "-" << "\n";
+      if (dir == -1) {
+	acc = 0;
+	min_p = p;
+      }
+      if (dir == 1){
+	acc++;
+	if (acc>10){
+	  acc = 0; dir = -1;
+	  max_points.push_back(max_p);
+	}
+      }if (dir == 0){
+	acc++; if (acc>10) {dir = -1; acc = 0;}}
+    }
+    last = p;
+  }
+}
+
+
+int main(int argc, char *argv[]){
+  Mat img = imread("images/export.png", 0);
+  Mat skel, res2;
+
+  
+  if (img.empty()){cout << "can't read image"<<endl; return -1;}
+
+  
+  skel = skeletization(img);
+  vector<Point> points, max_points;
+  
+  extractPoints(skel, points);
+  findMaxCurvature(points, max_points);
+  for (auto & p : max_points) {
+    cout << p << "\n";
+  }
+  // draw skel with points extraidos
+  Mat skel_points(skel.size(), CV_8UC1, cv::Scalar(0));
+  for (auto& p : points){
+     skel_points.at<char>(p.y, p.x) = 255;
+  }
+
+
+  
+
+
+  // sow results
+  namedWindow("image", 0);
+  namedWindow("skel", 0);
+  namedWindow("endp", 0);
+  imshow("image", img);
+  imshow("skel", skel);
+  imshow("endp", skel_points);
+  
+  waitKey(0);
+  destroyAllWindows();
+  
+  return 0;
+}
+

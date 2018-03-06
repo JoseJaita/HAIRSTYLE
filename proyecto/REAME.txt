@@ -1,0 +1,20 @@
+En este trabajo se implementa parte del paper
+
+SINGLE-VIEW HAIR MODELING USING A HAIRSTYLE DATABASE
+
+autores: Liwen Hu, Chongyang Ma, Linjie Luo, Hao Li
+
+ACM Transactions on Graphics, Proceedings of the 42nd ACM SIGGRAPH Conference and Exhibition 2015, 08/2015 – SIGGRAPH 2015
+
+para compilar:
+
+cmake .
+
+make
+
+para ejecutar: ./main <haistyle> <imagen de entrada>
+
+./main data/strands00001.data images/export2.png 
+
+
+
